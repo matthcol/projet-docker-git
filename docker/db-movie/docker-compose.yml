@@ -1,0 +1,68 @@
+services:
+  db:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: movies
+      POSTGRES_USER: movies
+      POSTGRES_PASSWORD: movies
+    volumes:
+      - ./sql:/docker-entrypoint-initdb.d
+      - db-data:/var/lib/postgresql
+    ports:
+      - "5432:5432"
+
+  admin:
+    image: dpage/pgadmin4
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.org
+      PGADMIN_DEFAULT_PASSWORD: admin
+    volumes:
+      - ./pgadmin/servers.json:/pgadmin4/servers.json
+    ports:
+      - "8080:80"
+    depends_on:
+      - db
+
+  api:
+    build: ./api
+    environment:
+      DATABASE_URL: postgresql://movies:movies@db:5432/movies
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+    restart: on-failure
+    volumes:
+      - ./api:/app
+
+  front:
+    build: ./front
+    ports:
+      - "3000:5173"
+    depends_on:
+      - api
+    volumes:
+      - ./front:/app
+      - /app/node_modules
+
+  mongo:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+  migrate:
+    build: ./migrate
+    environment:
+      PG_DSN: postgresql://movies:movies@db:5432/movies
+      MONGO_URL: mongodb://mongo:27017
+      MONGO_DB: movies
+    depends_on:
+      - db
+      - mongo
+    restart: on-failure
+
+volumes:
+  db-data:
+  mongo-data:
